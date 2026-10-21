@@ -18,6 +18,8 @@ enum SettingsKey {
 
     static let animateBackground = "animate-trip-background"
     static let alwaysShowTabBar = "always-show-tab-bar"
+    /// iPad: a close button where the window controls are, which iPadOS hides in full screen.
+    static let fullScreenCloseButton = "full-screen-close-button"
 
     static func include(_ mode: TransportMode) -> String { "include-\(mode.rawValue)" }
 }
@@ -120,6 +122,7 @@ extension UserDefaults {
             SettingsKey.provider: Provider.default.id,
             SettingsKey.deletionTime: 2,
             SettingsKey.animateBackground: true,
+            SettingsKey.fullScreenCloseButton: true,
         ]
         for mode in TransportMode.allCases {
             defaults[SettingsKey.include(mode)] = true

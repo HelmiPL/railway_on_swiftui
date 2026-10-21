@@ -93,11 +93,21 @@ struct SearchOptionsForm: View {
                             }
                         )) {
                             Label(mode.title, systemImage: mode.systemImage)
+                                #if os(iOS)
+                                // One line each, so all buttons have the same size, as on the Mac.
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                #endif
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .toggleStyle(.button)
+                        #if os(macOS)
                         .buttonBorderShape(.roundedRectangle(radius: 6))
                         .controlSize(.large)
+                        #else
+                        // Concentric with the section around them (about 26 pt, 8 pt further out).
+                        .buttonBorderShape(.roundedRectangle(radius: 18))
+                        #endif
                     }
                 }
                 // The same 8 pt on every side as between the buttons; their corners nest inside
@@ -116,6 +126,7 @@ struct SearchOptionsSheet: View {
     @State private var draft = SearchOptions.load()
 
     var body: some View {
+        #if os(macOS)
         VStack(spacing: 0) {
             // A plain header, aligned with the form's content (a navigation title would be centred).
             Text("Search Options")
@@ -145,6 +156,26 @@ struct SearchOptionsSheet: View {
             .padding(.bottom, 18)
         }
         .frame(minWidth: 460, idealWidth: 500, minHeight: 580)
+        #else
+        // A standard iOS/iPadOS sheet: the title and buttons in the navigation bar.
+        NavigationStack {
+            SearchOptionsForm(options: $draft)
+                .navigationTitle("Search Options")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", role: .cancel) { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Apply", role: .confirm) {
+                            draft.save()
+                            dismiss()
+                        }
+                        .disabled(draft == original)
+                    }
+                }
+        }
+        #endif
     }
 }
 
@@ -164,8 +195,11 @@ private struct LiveSearchOptionsForm: View {
 }
 
 /// The Settings window, ported from Railway's `PreferencesDialog`; also hosts the search options.
+///
+/// On iOS/iPadOS, the Settings tab: each page is a row leading to its form.
 struct SettingsView: View {
     var body: some View {
+        #if os(macOS)
         TabView {
             // macOS only draws the bar behind the tabs while hovering; draw it permanently.
             Tab("General", systemImage: "gearshape") {
@@ -180,8 +214,27 @@ struct SettingsView: View {
         .frame(width: 520)
         .frame(minHeight: 300)
         .background(FixedWindowTitle(title: String(localized: "Railway Settings")))
+        #else
+        List {
+            NavigationLink {
+                GeneralSettings()
+                    .navigationTitle("General")
+            } label: {
+                Label("General", systemImage: "gearshape")
+            }
+            NavigationLink {
+                LiveSearchOptionsForm()
+                    .navigationTitle("Search Options")
+            } label: {
+                Label("Search Options", systemImage: "magnifyingglass")
+            }
+        }
+        .navigationTitle("Settings")
+        #endif
     }
 }
+
+#if os(macOS)
 
 /// Keeps a window's title fixed. Settings windows otherwise show the selected tab's name, which
 /// SwiftUI sets again on every tab switch.
@@ -222,11 +275,15 @@ private struct FixedWindowTitle: NSViewRepresentable {
         }
     }
 }
+#endif
 
 private struct GeneralSettings: View {
     @AppStorage(SettingsKey.deleteOld) private var deleteOld = false
     @AppStorage(SettingsKey.deletionTime) private var deletionTime = 2
     @AppStorage(SettingsKey.animateBackground) private var animateBackground = true
+    #if os(iOS)
+    @AppStorage(SettingsKey.fullScreenCloseButton) private var fullScreenCloseButton = true
+    #endif
 
     var body: some View {
         Form {
@@ -235,6 +292,15 @@ private struct GeneralSettings: View {
                     Text("Animate Trip Background")
                     Text("Slowly moves the colours behind the trip details")
                 }
+                #if os(iOS)
+                // Only iPad windows have window controls.
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    Toggle(isOn: $fullScreenCloseButton) {
+                        Text("Close Button in Full Screen")
+                        Text("Shows a button to close the window where the window controls are")
+                    }
+                }
+                #endif
             }
             Section("Bookmarks") {
                 Toggle(isOn: $deleteOld) {

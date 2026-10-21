@@ -13,11 +13,42 @@
 		A10000000000000000000004 /* Cargo.toml */ = {isa = PBXFileReference; lastKnownFileType = text; name = Cargo.toml; path = RailwayBridge/Cargo.toml; sourceTree = "<group>"; };
 		A10000000000000000000005 /* Config/Railway.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Config/Railway.entitlements; sourceTree = "<group>"; };
 		A10000000000000000000006 /* Scripts/build-bridge.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "Scripts/build-bridge.sh"; sourceTree = "<group>"; };
+		B10000000000000000000001 /* Railway.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Railway.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B20000000000000000000001 /* Exceptions for "RailwayApp" folder in "Railway for macOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"iOS and iPadOS/FullScreenCloseButton.swift",
+				"iOS and iPadOS/MainTabs.swift",
+				"iOS and iPadOS/PlatformViews.swift",
+				"iOS and iPadOS/RailwayApp.swift",
+				"iOS and iPadOS/WindowTabs.swift",
+			);
+			target = A50000000000000000000001 /* Railway for macOS */;
+		};
+		B20000000000000000000002 /* Exceptions for "RailwayApp" folder in "Railway for iOS and iPadOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				macOS/DebugAutomation.swift,
+				macOS/DebugGallery.swift,
+				macOS/NativeSegmentedControl.swift,
+				macOS/RailwayApp.swift,
+				macOS/SuggestionPanel.swift,
+				macOS/WindowController.swift,
+			);
+			target = B50000000000000000000001 /* Railway for iOS and iPadOS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A20000000000000000000001 /* RailwayApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B20000000000000000000001 /* Exceptions for "RailwayApp" folder in "Railway for macOS" target */,
+				B20000000000000000000002 /* Exceptions for "RailwayApp" folder in "Railway for iOS and iPadOS" target */,
+			);
 			path = RailwayApp;
 			sourceTree = "<group>";
 		};
@@ -25,6 +56,13 @@
 
 /* Begin PBXFrameworksBuildPhase section */
 		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B30000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -48,6 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000001 /* Railway.app */,
+				B10000000000000000000001 /* Railway.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -74,9 +113,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A50000000000000000000001 /* Railway */ = {
+		A50000000000000000000001 /* Railway for macOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "Railway" */;
+			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "Railway for macOS" */;
 			buildPhases = (
 				A60000000000000000000001 /* Build Rust Backend */,
 				A70000000000000000000001 /* Sources */,
@@ -90,9 +129,30 @@
 			fileSystemSynchronizedGroups = (
 				A20000000000000000000001 /* RailwayApp */,
 			);
-			name = Railway;
+			name = "Railway for macOS";
 			productName = Railway;
 			productReference = A10000000000000000000001 /* Railway.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B50000000000000000000001 /* Railway for iOS and iPadOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B90000000000000000000001 /* Build configuration list for PBXNativeTarget "Railway for iOS and iPadOS" */;
+			buildPhases = (
+				B60000000000000000000001 /* Build Rust Backend */,
+				B70000000000000000000001 /* Sources */,
+				B30000000000000000000001 /* Frameworks */,
+				B70000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A20000000000000000000001 /* RailwayApp */,
+			);
+			name = "Railway for iOS and iPadOS";
+			productName = Railway;
+			productReference = B10000000000000000000001 /* Railway.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -106,6 +166,9 @@
 				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					B50000000000000000000001 = {
 						CreatedOnToolsVersion = 27.1;
 					};
 				};
@@ -124,13 +187,21 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A50000000000000000000001 /* Railway */,
+				A50000000000000000000001 /* Railway for macOS */,
+				B50000000000000000000001 /* Railway for iOS and iPadOS */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A70000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B70000000000000000000002 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -164,10 +235,41 @@
 			shellScript = "\"$SRCROOT/Scripts/build-bridge.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		B60000000000000000000001 /* Build Rust Backend */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/RailwayBridge/src/lib.rs",
+				"$(SRCROOT)/RailwayBridge/Cargo.toml",
+				"$(SRCROOT)/RailwayBridge/Cargo.lock",
+				"$(SRCROOT)/Scripts/build-bridge.sh",
+			);
+			name = "Build Rust Backend";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/librailway_bridge.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/Scripts/build-bridge.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A70000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B70000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -258,7 +360,7 @@
 					SystemConfiguration,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.Railway;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Railway;
 				REGISTER_APP_GROUPS = NO;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -300,7 +402,7 @@
 					SystemConfiguration,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.Railway;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Railway;
 				REGISTER_APP_GROUPS = NO;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -309,6 +411,105 @@
 				SWIFT_OBJC_BRIDGING_HEADER = RailwayBridge/include/railway_bridge.h;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		B80000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Railway;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Based on Railway by Julian Schmidhuber and contributors. GPL-3.0-or-later.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.10.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lrailway_bridge",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Railway;
+				PRODUCT_NAME = Railway;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = RailwayBridge/include/railway_bridge.h;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B80000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Railway;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Based on Railway by Julian Schmidhuber and contributors. GPL-3.0-or-later.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.10.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lrailway_bridge",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Railway;
+				PRODUCT_NAME = Railway;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = RailwayBridge/include/railway_bridge.h;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -324,11 +525,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A90000000000000000000002 /* Build configuration list for PBXNativeTarget "Railway" */ = {
+		A90000000000000000000002 /* Build configuration list for PBXNativeTarget "Railway for macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A80000000000000000000003 /* Debug */,
 				A80000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B90000000000000000000001 /* Build configuration list for PBXNativeTarget "Railway for iOS and iPadOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B80000000000000000000001 /* Debug */,
+				B80000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

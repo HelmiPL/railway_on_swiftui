@@ -5,9 +5,11 @@ struct JourneyDetailView: View {
     @Environment(AppModel.self) private var model
     /// Trip windows are titled with the route instead of "Trip Details".
     var showsRouteAsTitle = false
+    /// The detail column on iPad has no title: the trip shows its route as a heading.
+    var showsTitle = true
 
     private var title: String {
-        guard let journey = model.selectedJourney?.journey else { return "" }
+        guard showsTitle, let journey = model.selectedJourney?.journey else { return "" }
         return showsRouteAsTitle ? "\(journey.originName) → \(journey.destinationName)" : String(localized: "Trip Details")
     }
 
@@ -34,12 +36,22 @@ struct JourneyDetailView: View {
         .toolbar { toolbar }
     }
 
+    /// In the iPad's detail column the buttons start on the left, as on the Mac; trip windows and
+    /// sheets keep them on the right, next to their title and close button.
+    private var buttonPlacement: ToolbarItemPlacement {
+        #if os(iOS)
+        showsTitle ? .automatic : .topBarLeading
+        #else
+        .automatic
+        #endif
+    }
+
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         if let journey = model.selectedJourney {
             let bookmarked = model.journeyStore.contains(journey)
             let watched = model.journeyStore.isWatched(journey)
-            ToolbarItem {
+            ToolbarItem(placement: buttonPlacement) {
                 Button {
                     model.refresh(journey)
                 } label: {
@@ -53,9 +65,9 @@ struct JourneyDetailView: View {
                 .help("Refresh This Trip")
             }
 
-            ToolbarSpacer(.fixed)
+            ToolbarSpacer(.fixed, placement: buttonPlacement)
 
-            ToolbarItemGroup {
+            ToolbarItemGroup(placement: buttonPlacement) {
                 if bookmarked {
                     Button {
                         model.toggleWatch(journey)
@@ -93,7 +105,12 @@ private struct JourneyDetail: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(j.originName) → \(j.destinationName)")
+                        // iOS/iPadOS's large title is much bigger than the Mac's; `.title` is close to it.
+                        #if os(macOS)
                         .font(.largeTitle.weight(.bold))
+                        #else
+                        .font(.title.weight(.bold))
+                        #endif
                         .padding(.bottom, 4)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
@@ -138,6 +155,9 @@ private struct JourneyDetail: View {
             .frame(maxWidth: .infinity)
         }
         .defaultScrollAnchor(.top)
+        #if os(iOS)
+        .refreshable { await model.reload(journey) }
+        #endif
         .background { TripGradient(legs: j.legs) }
         .safeAreaInset(edge: .top, spacing: 0) {
             if isWatched {
@@ -254,7 +274,7 @@ private struct TripGradient: View {
             }
             // Fade out towards the bottom, so long trips stay calm.
             LinearGradient(
-                colors: [.clear, Color(nsColor: .windowBackgroundColor).opacity(0.45)],
+                colors: [.clear, Color.windowBackground.opacity(0.45)],
                 startPoint: .center,
                 endPoint: .bottom
             )
@@ -408,7 +428,7 @@ private struct TransitionRow: View {
 /// One vehicle leg, ported from Railway's `LegItem`.
 private struct LegCard: View {
     var leg: Leg
-    #if DEBUG
+    #if DEBUG && os(macOS)
     @State private var showStops = DebugAutomation.expand
     @State private var showRemarks = DebugAutomation.expand
     #else

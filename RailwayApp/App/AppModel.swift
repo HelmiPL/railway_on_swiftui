@@ -136,12 +136,53 @@ final class AppModel {
     var isCompact = false
     /// Whether this window shows the search (trip windows do not).
     let hasSearch: Bool
-    /// Whether the window's native tab bar is showing.
+    /// Whether the window's tab bar is showing (native on the Mac, `WindowTabBar` on iPad).
     var tabBarVisible = false
     /// Whether the pointer is over the toolbar above the trip details.
     var toolbarHovered = false
     /// Where the trip details column starts, in window coordinates.
     var detailMinX: CGFloat = 0
+
+    /// Whether search, connections and trip details are columns of one window, as on the Mac.
+    /// iOS/iPadOS uses tabs instead while the window is narrow (on iPhone, and in small iPad windows).
+    var usesSplitView = true
+
+    #if os(iOS)
+    enum Tab { case search, bookmarks, settings }
+
+    var selectedTab = Tab.search
+    /// Whether the selected journey is shown in a sheet.
+    var isTripPresented = false
+    /// Whether the settings are shown in a sheet (iPad; iPhone has a tab for them).
+    var isSettingsPresented = false
+    /// Whether the full-screen close button is showing in the window's top-left corner.
+    var showsCloseButton = false
+    /// With the sidebar hidden, the leftmost column's toolbar starts in that corner; iPadOS only
+    /// leaves room there for its own window controls, so the sidebar button is replaced by one
+    /// placed after the close button.
+    var replacesSidebarToggle: Bool { showsCloseButton && !isSidebarVisible }
+    /// Where the toolbar ends, in window coordinates: the iPad's tab bar goes right below it.
+    var tabBarTop: CGFloat = 0
+    /// Where the connections column starts: the tab bar spans it and the trip column, not the
+    /// sidebar.
+    var tabBarLeading: CGFloat = 0
+    /// Where the trip column starts, to hide the divider before it within the toolbar.
+    var tabBarDividerX: CGFloat = 0
+    /// The line the toolbar's buttons are centred on, in global coordinates: for the tab bar's
+    /// separator and the full-screen close button.
+    var toolbarCentreY: CGFloat = 0
+    #endif
+
+    /// Shows a journey's details: in the detail column if there is one, otherwise in a sheet on
+    /// iOS/iPadOS (the Mac opens a window instead, see the callers).
+    func open(_ journey: JourneyModel) {
+        selectedJourney = journey
+        #if os(iOS)
+        if !usesSplitView || isCompact {
+            isTripPresented = true
+        }
+        #endif
+    }
 
     /// What to draw behind the toolbar above a column.
     /// - `raised`: an opaque bar set apart from the content: lighter in dark mode, light grey in
@@ -241,24 +282,36 @@ final class AppModel {
     func search() {
         guard canSearch, let source = from.place, let destination = to.place else { return }
         saveSearchInputs()
-        let time = useNow ? Date.now : date
         let timeType = timeType
         let providerID = provider.id
+        // Set right away, so the search can't be started twice.
         searching = true
         Task {
-            defer { searching = false }
-            do {
-                let page = try await client.journeys(
-                    from: source, to: destination, time: time, timeType: timeType,
-                    options: defaults.journeyQueryOptions
-                )
-                result = JourneysResult(
-                    source: source, destination: destination, timeType: timeType, requestedTime: time,
-                    providerID: providerID, page: page, registry: registry
-                )
-            } catch {
-                show(error)
-            }
+            await search(from: source, to: destination, timeType: timeType, providerID: providerID)
+        }
+    }
+
+    /// Searches the shown connections again, e.g. when pulling to refresh.
+    func reloadResults() async {
+        guard let result, !searching else { return }
+        await search(from: result.source, to: result.destination, timeType: result.timeType, providerID: result.providerID)
+    }
+
+    private func search(from source: Place, to destination: Place, timeType: TimeType, providerID: String) async {
+        let time = useNow ? Date.now : date
+        searching = true
+        defer { searching = false }
+        do {
+            let page = try await RailwayClient(providerID: providerID).journeys(
+                from: source, to: destination, time: time, timeType: timeType,
+                options: defaults.journeyQueryOptions
+            )
+            result = JourneysResult(
+                source: source, destination: destination, timeType: timeType, requestedTime: time,
+                providerID: providerID, page: page, registry: registry
+            )
+        } catch {
+            show(error)
         }
     }
 
@@ -336,13 +389,16 @@ final class AppModel {
     }
 
     func refresh(_ journey: JourneyModel) {
-        Task {
-            do {
-                try await journey.refresh()
-                if journeyStore.contains(journey) { journeyStore.flush() }
-            } catch {
-                show(error)
-            }
+        Task { await reload(journey) }
+    }
+
+    /// Refreshes a journey and waits for it, e.g. when pulling to refresh.
+    func reload(_ journey: JourneyModel) async {
+        do {
+            try await journey.refresh()
+            if journeyStore.contains(journey) { journeyStore.flush() }
+        } catch {
+            show(error)
         }
     }
 

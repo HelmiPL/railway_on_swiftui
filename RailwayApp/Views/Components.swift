@@ -286,3 +286,14 @@ extension View {
         modifier(CardBackground(cornerRadius: cornerRadius))
     }
 }
+
+extension Color {
+    /// The background colour of windows.
+    static var windowBackground: Color {
+        #if os(macOS)
+        Color(nsColor: .windowBackgroundColor)
+        #else
+        Color(uiColor: .systemBackground)
+        #endif
+    }
+}

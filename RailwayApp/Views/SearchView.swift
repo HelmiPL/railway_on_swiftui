@@ -8,6 +8,7 @@ struct SearchView: View {
     @Environment(AppModel.self) private var model
     @FocusState private var focusedField: FieldKind?
     @State private var showingOptions = false
+    @State private var showingNetworks = false
     /// Whether the search options differ from the defaults, shown as a red dot on their button.
     @State private var optionsCustomized = SearchOptions.load().isCustomized
     /// Frames of the fields inside the route panel.
@@ -33,20 +34,68 @@ struct SearchView: View {
                 routePanel
                 TimeControls()
                 searchButton
+                #if os(iOS)
+                if !model.usesSplitView {
+                    // Bookmarks have their own tab; the connections show here instead of in a column.
+                    if let result = model.result {
+                        SearchResults(result: result)
+                    }
+                } else {
+                    BookmarkLists()
+                }
+                #else
                 BookmarkLists()
+                #endif
             }
             .padding(.horizontal, 12)
             .padding(.top, 6)
             .padding(.bottom, 16)
+            #if os(iOS)
+            // In the sidebar (iPad), the network picker opens from here instead of from its toolbar
+            // button: popovers grow out of toolbar buttons and would cover the toolbar, including
+            // the window controls next to it.
+            .popover(
+                isPresented: model.usesSplitView ? $showingNetworks : .constant(false),
+                attachmentAnchor: .point(.top),
+                arrowEdge: .top
+            ) {
+                NetworkPopover(showing: $showingNetworks)
+            }
+            #endif
         }
+        #if os(iOS)
+        // The connections are part of this screen when there are no columns.
+        .refreshable(isEnabled: !model.usesSplitView && model.result != nil) {
+            await model.reloadResults()
+        }
+        #endif
         .scrollEdgeEffectStyle(.soft, for: .top)
         .navigationTitle("Railway")
+        #if os(iOS)
+        // The sidebar's toolbar has no room for the title next to its buttons; like on the Mac, it
+        // only names the window there.
+        .toolbar(removing: model.usesSplitView ? .title : nil)
+        .toolbar {
+            // iPad has no Settings window; with tabs (iPhone), Settings is a tab. In the sidebar's
+            // own bottom bar it lines up and matches the toolbar buttons above.
+            if model.usesSplitView {
+                ToolbarItem(placement: .bottomBar) {
+                    Button {
+                        model.isSettingsPresented = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+            }
+        }
+        #endif
         .toolbar {
             // These belong to the search form; with the sidebar hidden AppKit would otherwise move
             // them into the toolbar's overflow menu.
             if model.isSidebarVisible {
                 ToolbarItem {
-                    ProviderButton()
+                    ProviderButton(showing: $showingNetworks)
                 }
                 // Keep the options button out of the network picker's glass capsule.
                 ToolbarSpacer(.fixed)
@@ -108,7 +157,13 @@ struct SearchView: View {
         .coordinateSpace(.named(Self.coordinateSpace))
         .glassEffect(.regular, in: .rect(cornerRadius: 20))
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { routeFrame = $0 }
+        #if os(macOS)
         .background { suggestionPanel }
+        #else
+        // Without a separate window, the suggestions have to stay above the controls below.
+        .overlay(alignment: .top) { suggestionPanel }
+        .zIndex(1)
+        #endif
     }
 
     private func stationField(_ field: StationField, title: LocalizedStringKey, systemImage: String, kind: FieldKind) -> some View {
@@ -262,6 +317,9 @@ private struct SwapIcon: View {
 private struct TimeControls: View {
     @Environment(AppModel.self) private var model
     @State private var showingDate = false
+    #if os(iOS)
+    @State private var showingTime = false
+    #endif
 
     var body: some View {
         @Bindable var model = model
@@ -290,12 +348,36 @@ private struct TimeControls: View {
 
                     Spacer(minLength: 4)
 
+                    #if os(macOS)
                     // Click the hours or the minutes and type, like everywhere else in macOS.
                     DatePicker("Time", selection: dateBinding, displayedComponents: .hourAndMinute)
                         .datePickerStyle(.field)
                         .labelsHidden()
                         .fixedSize()
                         .help("Type the Hour and Minutes")
+                    #else
+                    // The system's compact time button is larger than "Now" and can't be resized;
+                    // this one matches it.
+                    Button {
+                        showingTime = true
+                    } label: {
+                        Text(Format.time(dateBinding.wrappedValue))
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .tint(.secondary)
+                    .accessibilityLabel("Time")
+                    .popover(isPresented: $showingTime) {
+                        DatePicker("Time", selection: dateBinding, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .padding()
+                            .presentationCompactAdaptation(.popover)
+                    }
+                    #endif
 
                     Toggle("Now", isOn: nowBinding)
                         .toggleStyle(.button)
@@ -375,9 +457,12 @@ private struct GroupRowButton<Label: View>: View {
 // MARK: - Bookmarks
 
 /// Bookmarked trips and searches, in collapsible sections like a Finder sidebar.
-private struct BookmarkLists: View {
+///
+/// Below the search on the Mac; in the Bookmarks tab on iOS/iPadOS.
+struct BookmarkLists: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
     @AppStorage("sidebar-trips-expanded") private var tripsExpanded = true
     @AppStorage("sidebar-searches-expanded") private var searchesExpanded = true
 
@@ -385,19 +470,23 @@ private struct BookmarkLists: View {
         if !model.journeyStore.journeys.isEmpty {
             BookmarkSection(title: "Bookmarked Trips", isExpanded: $tripsExpanded) {
                 ForEach(model.journeyStore.journeys) { journey in
-                    BookmarkRow(isSelected: model.selectedJourney?.id == journey.id) {
-                        model.selectedJourney = journey
+                    BookmarkRow(isSelected: isSelected(journey)) {
+                        model.open(journey)
+                        #if os(macOS)
                         if model.isCompact {
                             openWindow(id: SceneID.trip, value: journey.id)
                         }
+                        #endif
                     } label: {
                         JourneyBookmarkLabel(journey: journey, isWatched: model.journeyStore.isWatched(journey))
                     }
                     .contextMenu {
-                        Button("Open in New Window", systemImage: "macwindow.badge.plus") {
-                            openWindow(id: SceneID.trip, value: journey.id)
+                        if supportsMultipleWindows {
+                            Button("Open in New Window", systemImage: "macwindow.badge.plus") {
+                                openWindow(id: SceneID.trip, value: journey.id)
+                            }
+                            Divider()
                         }
-                        Divider()
                         Button("Remove Bookmark", systemImage: "bookmark.slash", role: .destructive) {
                             model.journeyStore.remove(journey)
                         }
@@ -410,6 +499,9 @@ private struct BookmarkLists: View {
                 ForEach(model.searchStore.searches) { search in
                     BookmarkRow(isSelected: false) {
                         model.run(search)
+                        #if os(iOS)
+                        model.selectedTab = .search
+                        #endif
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "magnifyingglass")
@@ -430,6 +522,10 @@ private struct BookmarkLists: View {
                 }
             }
         }
+    }
+    /// Without a detail column, trips open in a sheet, so there is no selection to show.
+    private func isSelected(_ journey: JourneyModel) -> Bool {
+        model.usesSplitView && model.selectedJourney?.id == journey.id
     }
 }
 
@@ -453,7 +549,9 @@ private struct BookmarkSection<Content: View>: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        #if os(macOS)
                         .opacity(hovering ? 1 : 0)
+                        #endif
                 }
                 .padding(.horizontal, 8)
                 .contentShape(.rect)
@@ -540,7 +638,7 @@ private struct BookmarkRow<Label: View>: View {
 /// The network selector in the sidebar's toolbar. Ported from Railway's `ProviderPopover`.
 private struct ProviderButton: View {
     @Environment(AppModel.self) private var model
-    @State private var showing = false
+    @Binding var showing: Bool
 
     var body: some View {
         Button {
@@ -557,12 +655,40 @@ private struct ProviderButton: View {
         }
         .help("Select Network")
         .accessibilityLabel("Select Network, \(model.provider.shortName)")
+        #if os(macOS)
         .popover(isPresented: $showing, arrowEdge: .bottom) {
-            ProviderPicker { provider in
-                model.selectProvider(provider)
-                showing = false
+            NetworkPopover(showing: $showing)
+        }
+        #else
+        // In the sidebar, `SearchView` shows it below the toolbar instead.
+        .popover(isPresented: model.usesSplitView ? .constant(false) : $showing, arrowEdge: .bottom) {
+            NetworkPopover(showing: $showing)
+        }
+        #endif
+        #if DEBUG
+        .task {
+            // Like `RAILWAY_OPTIONS`: open the network picker after launch.
+            if ProcessInfo.processInfo.environment["RAILWAY_NETWORKS"] != nil {
+                try? await Task.sleep(for: .seconds(1))
+                showing = true
             }
         }
+        #endif
+    }
+}
+
+/// The network picker in its popover; choosing a network closes it.
+private struct NetworkPopover: View {
+    @Environment(AppModel.self) private var model
+    @Binding var showing: Bool
+
+    var body: some View {
+        ProviderPicker { provider in
+            model.selectProvider(provider)
+            showing = false
+        }
+        // A popover on iPhone too, rather than a sheet.
+        .presentationCompactAdaptation(.popover)
     }
 }
 
@@ -622,7 +748,10 @@ private struct ProviderPicker: View {
             }
         }
         .frame(width: 320, height: 460)
+        #if os(macOS)
+        // On iOS/iPadOS the keyboard would cover most of the networks.
         .onAppear { searchFocused = true }
+        #endif
     }
 }
 
@@ -661,3 +790,58 @@ private struct ProviderRow: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
+
+// MARK: - Results (iOS/iPadOS)
+
+#if os(iOS)
+private extension View {
+    /// Pull to refresh, only offered while `isEnabled`.
+    @ViewBuilder
+    func refreshable(isEnabled: Bool, action: @escaping @Sendable () async -> Void) -> some View {
+        if isEnabled {
+            refreshable(action: action)
+        } else {
+            self
+        }
+    }
+}
+
+/// The connections below the search form; tapping one opens its details in a sheet.
+private struct SearchResults: View {
+    @Environment(AppModel.self) private var model
+    var result: JourneysResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text("\(result.source.name) → \(result.destination.name)")
+                    .font(.headline)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+                Button {
+                    model.toggleResultBookmark()
+                } label: {
+                    Label(
+                        model.isResultBookmarked ? "Remove Search Bookmark" : "Bookmark This Search",
+                        systemImage: model.isResultBookmarked ? "bookmark.fill" : "bookmark"
+                    )
+                    .labelStyle(.iconOnly)
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: model.isResultBookmarked)
+                    .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+            }
+            .padding(.leading, 8)
+            .padding(.top, 12)
+
+            JourneyRows(result: result, highlightsSelection: false) { journey in
+                model.open(journey)
+            }
+            // The rows carry their own inset; line them up with the form above.
+            .padding(.horizontal, -10)
+        }
+    }
+}
+#endif

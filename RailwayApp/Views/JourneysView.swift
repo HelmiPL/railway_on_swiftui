@@ -3,6 +3,34 @@ import SwiftUI
 /// The middle column: connections found for the search. Ported from Railway's `JourneysPage`.
 struct JourneysView: View {
     @Environment(AppModel.self) private var model
+    #if os(iOS)
+    /// The title's natural width and the column's, so the title only shortens when it must.
+    @State private var titleWidth: CGFloat = 0
+    @State private var columnWidth: CGFloat = 0
+
+    /// What the toolbar leaves for the title: the column, less its margins, the other items with
+    /// the space iPadOS puts around each, and some slack. Any less and iPadOS moves all items into
+    /// a "…" menu (measured in a 390 pt column: 172 pt is the most the title can have with the
+    /// replaced sidebar button and the bookmark button).
+    private var availableTitleWidth: CGFloat {
+        var items: [CGFloat] = []
+        if model.replacesSidebarToggle { items += [30, 44] }
+        if model.result != nil { items.append(44) }
+        let width = columnWidth - 2 * 16 - titleLeadingPadding
+            - items.reduce(0, +) - CGFloat(items.count) * 12 - 32
+        return max(width, 60)
+    }
+
+    /// As far from the column's edge as the title is from the top and bottom of the toolbar
+    /// (it is centred in it, 25 pt from either); after the sidebar button, the usual spacing.
+    private var titleLeadingPadding: CGFloat {
+        model.replacesSidebarToggle ? 0 : 13.5
+    }
+    #endif
+
+    private var title: String {
+        model.result.map { "\($0.source.name) → \($0.destination.name)" } ?? String(localized: "Railway")
+    }
 
     var body: some View {
         Group {
@@ -16,8 +44,56 @@ struct JourneysView: View {
                 }
             }
         }
-        // The route names the window and its tab.
-        .navigationTitle(model.result.map { "\($0.source.name) → \($0.destination.name)" } ?? String(localized: "Railway"))
+        // The rhwooute names the window and its tab.
+        .navigationTitle(title)
+        #if os(iOS)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { columnWidth = $0 }
+        // Small and on the left, like the title of the column on the Mac. iPadOS centres inline
+        // titles, so the title is shown as a toolbar item instead; it still names the window.
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(removing: .title)
+        // The system's sidebar button is replaced below, after the full-screen close button.
+        .toolbar(removing: model.replacesSidebarToggle ? .sidebarToggle : nil)
+        .toolbar {
+            if model.replacesSidebarToggle {
+                // Room for the full-screen close button in the window's corner, then the sidebar
+                // button the system would have put there.
+                ToolbarItem(placement: .topBarLeading) {
+                    Color.clear.frame(width: 30, height: 1)
+                }
+                .sharedBackgroundVisibility(.hidden)
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        model.toggleSidebar()
+                    } label: {
+                        Label("Show Sidebar", systemImage: "sidebar.left")
+                    }
+                }
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                Text(title)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    // Toolbar items are otherwise squeezed to a few letters: as wide as the title,
+                    // or as the toolbar allows, so it doesn't push the other items into a menu.
+                    .frame(width: titleWidth > 0 ? min(titleWidth, availableTitleWidth) : nil)
+                    .background {
+                        Text(title)
+                            .font(.headline)
+                            .fixedSize()
+                            .hidden()
+                            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
+                    }
+                    .padding(.leading, titleLeadingPadding)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
+                        model.toolbarCentreY = $0
+                    }
+                    .accessibilityAddTraits(.isHeader)
+            }
+            .sharedBackgroundVisibility(.hidden)
+        }
+        #endif
         .toolbar {
             if model.result != nil {
                 ToolbarItem {
@@ -47,66 +123,33 @@ private struct JourneysList: View {
     var result: JourneysResult
 
     var body: some View {
-        let days = result.days
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                    LoadMoreRow(title: "Earlier Connections", systemImage: "arrow.up", loading: model.loadingEarlier) {
-                        model.loadEarlier()
+                JourneyRows(result: result) { journey in
+                    model.open(journey)
+                    focused = true
+                    #if os(macOS)
+                    // Without room for the details, show the trip in its own window.
+                    if model.isCompact {
+                        openWindow(id: SceneID.trip, value: journey.id)
                     }
-                    .disabled(result.earlierRef == nil)
-
-                    ForEach(Array(days.enumerated()), id: \.element.day) { index, day in
-                        Section {
-                            ForEach(Array(day.journeys.enumerated()), id: \.element.id) { position, journey in
-                                let selected = model.selectedJourney?.id == journey.id
-                                let previousSelected = position > 0 && model.selectedJourney?.id == day.journeys[position - 1].id
-                                JourneyListRow(
-                                    journey: journey,
-                                    isSelected: selected,
-                                    showsSeparator: position > 0 && !selected && !previousSelected
-                                ) {
-                                    model.selectedJourney = journey
-                                    focused = true
-                                    // Without room for the details, show the trip in its own window.
-                                    if model.isCompact {
-                                        openWindow(id: SceneID.trip, value: journey.id)
-                                    }
-                                }
-                                .id(journey.id)
-                                .onAppear {
-                                    // Load more when reaching the end of the list, like Railway.
-                                    if journey.id == result.journeys.last?.id {
-                                        model.loadLater()
-                                    }
-                                }
-                                .contextMenu { JourneyContextMenu(journey: journey) }
-                            }
-                        } header: {
-                            // The requested day needs no header at the very top.
-                            if index > 0 || !Calendar.current.isDate(day.day, inSameDayAs: result.requestedTime) {
-                                DayHeader(day: day.day)
-                            }
-                        }
-                    }
-
-                    LoadMoreRow(title: "Later Connections", systemImage: "arrow.down", loading: model.loadingLater) {
-                        model.loadLater()
-                    }
-                    .disabled(result.laterRef == nil)
+                    #endif
                 }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 8)
             }
+            #if os(iOS)
+            .refreshable { await model.reloadResults() }
+            #endif
             .focusable()
             .focused($focused)
             .focusEffectDisabled()
+            #if os(macOS)
             .onMoveCommand { direction in
                 move(direction)
                 if let id = model.selectedJourney?.id {
                     withAnimation(.snappy) { proxy.scrollTo(id) }
                 }
             }
+            #endif
             .onChange(of: result.journeys.first?.id) { old, new in
                 // Keep the previously first journey in view after prepending earlier ones.
                 if let old, old != new { proxy.scrollTo(old, anchor: .top) }
@@ -114,6 +157,7 @@ private struct JourneysList: View {
         }
     }
 
+    #if os(macOS)
     private func move(_ direction: MoveCommandDirection) {
         let journeys = result.journeys
         guard !journeys.isEmpty else { return }
@@ -125,6 +169,68 @@ private struct JourneysList: View {
         default: 0
         }
         model.selectedJourney = journeys[next]
+    }
+    #endif
+}
+
+/// The connections grouped by day, with buttons to load earlier and later ones.
+///
+/// The Mac shows them in their own column; iOS/iPadOS shows them below the search form.
+struct JourneyRows: View {
+    @Environment(AppModel.self) private var model
+    var result: JourneysResult
+    /// Whether the selected journey is highlighted; on iOS/iPadOS it opens in a sheet instead.
+    var highlightsSelection = true
+    var onSelect: (JourneyModel) -> Void
+
+    var body: some View {
+        let days = result.days
+        LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+            LoadMoreRow(title: "Earlier Connections", systemImage: "arrow.up", loading: model.loadingEarlier) {
+                model.loadEarlier()
+            }
+            .disabled(result.earlierRef == nil)
+
+            ForEach(Array(days.enumerated()), id: \.element.day) { index, day in
+                Section {
+                    ForEach(Array(day.journeys.enumerated()), id: \.element.id) { position, journey in
+                        let selected = isSelected(journey)
+                        let previousSelected = position > 0 && isSelected(day.journeys[position - 1])
+                        JourneyListRow(
+                            journey: journey,
+                            isSelected: selected,
+                            showsSeparator: position > 0 && !selected && !previousSelected
+                        ) {
+                            onSelect(journey)
+                        }
+                        .id(journey.id)
+                        .onAppear {
+                            // Load more when reaching the end of the list, like Railway.
+                            if journey.id == result.journeys.last?.id {
+                                model.loadLater()
+                            }
+                        }
+                        .contextMenu { JourneyContextMenu(journey: journey) }
+                    }
+                } header: {
+                    // The requested day needs no header at the very top.
+                    if index > 0 || !Calendar.current.isDate(day.day, inSameDayAs: result.requestedTime) {
+                        DayHeader(day: day.day)
+                    }
+                }
+            }
+
+            LoadMoreRow(title: "Later Connections", systemImage: "arrow.down", loading: model.loadingLater) {
+                model.loadLater()
+            }
+            .disabled(result.laterRef == nil)
+        }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
+    }
+
+    private func isSelected(_ journey: JourneyModel) -> Bool {
+        highlightsSelection && model.selectedJourney?.id == journey.id
     }
 }
 
@@ -304,14 +410,17 @@ private struct ModeStrip: View {
 struct JourneyContextMenu: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
     var journey: JourneyModel
 
     var body: some View {
         let bookmarked = model.journeyStore.contains(journey)
-        Button("Open in New Window", systemImage: "macwindow.badge.plus") {
-            openWindow(id: SceneID.trip, value: journey.id)
+        if supportsMultipleWindows {
+            Button("Open in New Window", systemImage: "macwindow.badge.plus") {
+                openWindow(id: SceneID.trip, value: journey.id)
+            }
+            Divider()
         }
-        Divider()
         Button(bookmarked ? "Remove Bookmark" : "Bookmark This Trip",
                systemImage: bookmarked ? "bookmark.slash" : "bookmark") {
             model.toggleBookmark(journey)
