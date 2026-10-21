@@ -30,3 +30,7 @@ Debug builds understand a few environment variables, see `RailwayApp/App/DebugAu
 ## License
 
 GPL-3.0-or-later, like Railway.
+
+## AI Notice
+
+This project was created with the help of Claude AI models.
